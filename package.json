@@ -9,11 +9,11 @@
   },
   "engines": { "node": ">=18" },
   "dependencies": {
-    "better-sqlite3": "^11.5.0",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "mongodb": "^6.9.0"
   },
   "optionalDependencies": {
-    "mongodb": "^6.9.0"
+    "better-sqlite3": "^11.5.0"
   }
 }
