@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snip - URL Shortener</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14171c;--mu:#667085;--bd:#e4e7ec;--ac:#4f46e5;--ac2:#eef0ff;--ok:#16a34a;--er:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--tx:#eceff4;--mu:#9aa3b2;--bd:#262c36;--ac:#8b85ff;--ac2:#23244a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0}h2{font-size:15px;margin:0 0 12px}
+.hd{margin-bottom:18px}.sub{color:var(--mu);font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1;min-width:160px;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+button{padding:10px 16px;border:0;border-radius:8px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button:disabled{opacity:.6}
+button.g{background:var(--ac2);color:var(--ac);padding:6px 10px;font-size:13px}
+.msg{margin-top:10px;font-size:13px;color:var(--mu);word-break:break-all}.msg.er{color:var(--er)}.msg.ok{color:var(--ok)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+.stat b{display:block;font-size:26px}.stat span{color:var(--mu);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:120px}
+.bars div{flex:1;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.lb{display:flex;gap:4px;margin-top:4px;color:var(--mu);font-size:10px}.lb span{flex:1;text-align:center;overflow:hidden}
+.br{margin:6px 0;font-size:13px}.br i{display:block;height:6px;background:var(--ac);border-radius:3px;margin-top:2px}
+.br div{display:flex;justify-content:space-between;gap:8px}.br div span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:500;font-size:12px}
+td.u{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+tr.c{cursor:pointer}tr.sel td{background:var(--ac2)}
+a{color:var(--ac)}.empty{color:var(--mu);padding:12px 0}
+</style></head><body><div class="w">
+<div class="hd"><h1>✂️ Snip</h1><div class="sub">Shorten links. Track every click.</div></div>
+
+<div class="card"><h2>Create a short link</h2>
+<div class="row">
+<input id="url" placeholder="https://example.com/a/very/long/url" inputmode="url">
+<input id="alias" placeholder="custom alias (optional)" style="max-width:200px;flex:0 1 200px">
+<button id="go">Shorten</button></div>
+<div class="msg" id="msg"></div></div>
+
+<div class="stats">
+<div class="stat"><b id="sL">0</b><span>Links</span></div>
+<div class="stat"><b id="sC">0</b><span>Total clicks</span></div>
+<div class="stat"><b id="sT">0</b><span>Clicks today</span></div>
+<div class="stat"><b id="sA">0</b><span>Avg / link</span></div></div>
+
+<div class="card"><h2 id="aT">Clicks, last 14 days</h2><div class="bars" id="bars"></div><div class="lb" id="lb"></div></div>
+<div class="grid">
+<div class="card"><h2>Devices</h2><div id="dev"></div></div>
+<div class="card"><h2>Browsers</h2><div id="brw"></div></div>
+<div class="card"><h2>Operating systems</h2><div id="os"></div></div>
+<div class="card"><h2>Referrers</h2><div id="ref"></div></div></div>
+
+<div class="card"><h2>Your links <span class="sub">(click a row to filter analytics)</span></h2><div class="tw" id="tbl"></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let sel=null,links=[];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function say(t,c){const m=$('msg');m.textContent=t;m.className='msg '+(c||'')}
+async function api(p,o){const r=await fetch(p,o);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Request failed');return j}
+
+$('go').onclick=async()=>{
+  $('go').disabled=true;
+  try{
+    const j=await api('/api/shorten',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url:$('url').value,alias:$('alias').value})});
+    $('url').value='';$('alias').value='';
+    let copied='';try{await navigator.clipboard.writeText(j.shortUrl);copied=' (copied)'}catch(e){}
+    say('Created: '+j.shortUrl+copied,'ok');
+    await load();
+  }catch(e){say(e.message,'er')}
+  finally{$('go').disabled=false}
+};
+$('url').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
+
+function bars(el,list){
+  const m=list[0]?list[0].count:1;
+  el.innerHTML=list.length?list.map(x=>'<div class="br"><div><span>'+esc(x.name)+'</span><span>'+x.count+'</span></div><i style="width:'+Math.max(4,x.count/m*100)+'%"></i></div>').join(''):'<div class="empty">No data yet</div>';
+}
+function drawStats(s){
+  $('sT').textContent=sel?s.today:s.today;
+  const m=Math.max(1,...s.byDay.map(d=>d.count));
+  $('bars').innerHTML=s.byDay.map(d=>'<div title="'+d.date+': '+d.count+' clicks" style="height:'+(d.count/m*100)+'%"></div>').join('');
+  $('lb').innerHTML=s.byDay.map(d=>'<span>'+d.date.slice(8)+'</span>').join('');
+  $('aT').textContent='Clicks, last 14 days'+(sel?' · /'+sel:'');
+  bars($('dev'),s.devices);bars($('brw'),s.browsers);bars($('os'),s.os);bars($('ref'),s.referrers);
+}
+function drawTable(){
+  const total=links.reduce((a,l)=>a+l.clicks,0);
+  $('sL').textContent=links.length;$('sC').textContent=total;
+  $('sA').textContent=links.length?(total/links.length).toFixed(1):'0';
+  $('tbl').innerHTML=links.length?'<table><tr><th>Short link</th><th>Destination</th><th>Clicks</th><th>Created</th><th></th></tr>'+links.map(l=>
+    '<tr class="c'+(sel===l.code?' sel':'')+'" data-id="'+esc(l.code)+'"><td><a href="'+esc(l.shortUrl)+'" target="_blank" rel="noopener"><b>/'+esc(l.code)+'</b></a></td><td class="u" title="'+esc(l.url)+'">'+esc(l.url)+'</td><td>'+l.clicks+'</td><td>'+new Date(l.created).toLocaleDateString()+'</td><td><button class="g" data-copy="'+esc(l.shortUrl)+'">Copy</button></td></tr>').join('')+'</table>':'<div class="empty">No links yet. Create your first one above.</div>';
+}
+async function load(){
+  try{
+    links=await api('/api/links');drawTable();
+    drawStats(await api('/api/stats'+(sel?'?code='+encodeURIComponent(sel):'')));
+  }catch(e){say(e.message,'er')}
+}
+$('tbl').addEventListener('click',async e=>{
+  const cp=e.target.closest('[data-copy]');
+  if(cp){e.preventDefault();try{await navigator.clipboard.writeText(cp.dataset.copy);cp.textContent='Copied'}catch(x){say('Copy failed: '+cp.dataset.copy)}setTimeout(()=>cp.textContent='Copy',1200);return}
+  if(e.target.closest('a'))return;
+  const r=e.target.closest('tr[data-id]');if(r){sel=sel===r.dataset.id?null:r.dataset.id;load()}
+});
+load();setInterval(load,10000);
+</script></body></html>

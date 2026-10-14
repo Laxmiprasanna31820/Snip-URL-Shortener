@@ -1,0 +1,19 @@
+{
+  "name": "snip-url-shortener",
+  "version": "1.0.0",
+  "description": "Cloud-based URL shortener with click analytics (Node.js + Express + SQLite/MongoDB)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0"
+  },
+  "optionalDependencies": {
+    "mongodb": "^6.9.0"
+  }
+}
